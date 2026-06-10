@@ -1,0 +1,33 @@
+control_node:
+  ros__parameters:
+    # --- Comunicacao CAN ---
+    can_interface: "can0"
+    motor_id: 1                # CAN ID do motor = 0x140 + motor_id
+    update_rate_ms: 1          # 1 ms = 1 kHz (taxa do loop de controle)
+
+    # ===================================================================
+    #  Valores do datasheet MG8008E-i9 V3 (Riotech)
+    # ===================================================================
+    tau_max: 20.0              # Max Torque do datasheet [N.m]
+    kt: 2.0                    # Torque Constant [N.m/A] (eixo de saida)
+    i_max: 12.0                # Max Current do datasheet [A]
+    gear_ratio: 9.0            # Gear Reduction Ratio 9:1
+    temp_limit: 70             # corte de seguranca [C] (datasheet protege em 100)
+
+    # --- Ganhos do PID (alocacao de polos, zeta=0.8 wn=8 alpha=8) ---
+    kp: 190.6
+    ki: 884.1
+    kd: 16.07
+
+    # --- Parametros fisicos da planta (feedforward IDB) ---
+    D11: 0.2158                # inercia efetiva [kg.m^2]
+    mgd: 7.848                 # torque gravitacional maximo [N.m]
+    b: 0.5                     # atrito viscoso [N.m.s/rad]
+    use_feedforward: true      # true = IDB+PID ; false = PID puro
+
+    # ===================================================================
+    #  PENDENTE: calibracao eletrica da escala comando->corrente
+    #  O fator raw_max (no mg_motor_can.hpp, default 2000) mapeia a
+    #  corrente i_max para o valor bruto do comando 0xA1. Ajustar apos
+    #  o teste de calibracao com a fonte (ver README, secao Calibracao).
+    # ===================================================================
