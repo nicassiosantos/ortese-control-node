@@ -25,11 +25,21 @@ ament_target_dependencies(control_node
   std_srvs
 )
 
-install(TARGETS control_node
+add_executable(trajectory_node
+  src/trajectory_node.cpp
+  src/mot_reader.cpp
+  src/trajectory_proc.cpp
+)
+ament_target_dependencies(trajectory_node
+  rclcpp
+  std_msgs
+)
+
+install(TARGETS control_node trajectory_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY launch config
+install(DIRECTORY launch config data
   DESTINATION share/${PROJECT_NAME}
 )
 
