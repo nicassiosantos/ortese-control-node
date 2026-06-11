@@ -9,7 +9,7 @@ control_node:
     # ===================================================================
     #  Valores do datasheet MG8008E-i9 V3 (Riotech)
     # ===================================================================
-    tau_max: 20.0              # Max Torque [N.m]
+    tau_max: 10              # Max Torque [N.m]
     kt: 2.0                    # Torque Constant [N.m/A] (eixo de saida)
     i_max: 12.0                # Max Current [A]
     gear_ratio: 9.0            # Gear Reduction Ratio 9:1
