@@ -14,7 +14,7 @@ control_node:
     i_max: 1.0                # Max Current [A]
     gear_ratio: 9.0            # Gear Reduction Ratio 9:1
     temp_limit: 70             # corte de seguranca [C]
-    debug_frames: false        # true = imprime frames TX/RX em hex (p/ conferir protocolo)
+    debug_frames: true        # true = imprime frames TX/RX em hex (p/ conferir protocolo)
 
     # --- Ganhos do PID (alocacao de polos, zeta=0.8 wn=8 alpha=8) ---
     kp: 190.6
