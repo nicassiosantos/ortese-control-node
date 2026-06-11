@@ -2,9 +2,9 @@ control_node:
   ros__parameters:
     # --- Comunicacao RS485 (via conversor USB-Serial) ---
     port: "/dev/ttyUSB0"       # porta do conversor USB-RS485
-    baudrate: 1000000          # 1 Mbps (permite loop a 1 kHz)
+    baudrate: 115200          # 1 Mbps (permite loop a 1 kHz)
     motor_id: 1                # ID do motor
-    update_rate_ms: 1          # 1 ms = 1 kHz (taxa de projeto do PID)
+    update_rate_ms: 5          # 1 ms = 1 kHz (taxa de projeto do PID)
 
     # ===================================================================
     #  Valores do datasheet MG8008E-i9 V3 (Riotech)
