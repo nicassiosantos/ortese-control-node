@@ -4,6 +4,7 @@
 #include "control_node/mg_motor_serial.hpp"
 
 #include <cstring>
+#include <cstdio>
 #include <cmath>
 #include <unistd.h>
 #include <fcntl.h>
@@ -107,6 +108,16 @@ bool MGMotorSerial::sendCommand(uint8_t cmd, const std::vector<uint8_t> & data)
   }
 
   ssize_t n = ::write(fd_, frame.data(), frame.size());
+
+  if (cfg_.debug_frames) {
+    std::cerr << "[TX] ";
+    for (uint8_t b : frame) {
+      char buf[4]; std::snprintf(buf, sizeof(buf), "%02X ", b);
+      std::cerr << buf;
+    }
+    std::cerr << "\n";
+  }
+
   return n == static_cast<ssize_t>(frame.size());
 }
 
@@ -163,6 +174,20 @@ bool MGMotorSerial::readReply(uint8_t expected_cmd,
     for (uint8_t x : payload) sum += x;
     if (sum != data_chk) return false;  // checksum de dados invalido
   }
+
+  if (cfg_.debug_frames) {
+    std::cerr << "[RX] 3E ";
+    for (int i = 1; i < 5; ++i) {
+      char buf[4]; std::snprintf(buf, sizeof(buf), "%02X ", hdr[i]);
+      std::cerr << buf;
+    }
+    for (uint8_t b : payload) {
+      char buf[4]; std::snprintf(buf, sizeof(buf), "%02X ", b);
+      std::cerr << buf;
+    }
+    std::cerr << "\n";
+  }
+
   return true;
 }
 

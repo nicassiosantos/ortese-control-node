@@ -158,8 +158,58 @@ control_node/
 
 ## 4. Os parâmetros do motor e como afetam o código
 
-Esta é a parte mais importante para entender por que o código é como é. Cada
-número do datasheet do MG8008E-i9 tem um reflexo direto no software.
+### 4.0 O protocolo de comunicação (RS485 K-Tech)
+
+O motor fala um protocolo serial com frames assim:
+
+```
+[0x3E] [cmd] [id] [len] [hdr_chk]  ([dados...] [data_chk])
+  0x3E     = header fixo (todo frame começa com isto)
+  cmd      = byte do comando (0xA1 torque, 0x92 ângulo, etc.)
+  id       = ID do motor (1)
+  len      = quantos bytes de dados seguem
+  hdr_chk  = (0x3E + cmd + id + len) & 0xFF
+  data_chk = soma dos bytes de dados & 0xFF
+```
+
+**Comando de torque (`0xA1`)** envia 2 bytes com a corrente alvo `iq` (int16,
+byte baixo primeiro). Exemplo para 10 N·m (iq=833):
+
+```
+3E A1 01 02 E2 41 03 44
+3E=header  A1=cmd torque  01=id  02=len  E2=chk header(3E+A1+01+02)
+41 03 = iq 0x0341 = 833   44 = chk dados (41+03)
+```
+
+**Como CONFERIR o protocolo no seu motor:**
+
+Forma 1 — ferramenta offline (sem motor nem ROS), imprime os bytes exatos de
+cada comando para comparar com a captura do app LingLong:
+```bash
+ros2 run control_node mostra_protocolo
+```
+
+Forma 2 — debug ao vivo: `debug_frames: true` no `control.yaml` faz o nó
+imprimir cada frame TX/RX em hex no terminal.
+
+> A estrutura do frame está **confirmada** contra sua captura real: o frame
+> `3E 1F 01 00 5E` tem checksum 5E = (3E+1F+01+00)&0xFF, que bate. O layout fino
+> da *resposta* segue o padrão K-Tech/RMD; use o modo debug para confirmá-lo no
+> seu firmware antes de operar com torque.
+
+### 4.0.1 Taxa de controle e baudrate
+
+O PID foi projetado para **1 kHz (1 ms)**. Para isso a serial precisa ser
+rápida o suficiente:
+
+| Baudrate | Tempo por ciclo | 1 kHz? |
+|---|---|---|
+| 115200 | ~3,4 ms | não (~200 Hz) |
+| 1 Mbps | ~0,39 ms | sim, com folga |
+| 2 Mbps | ~0,20 ms | folga grande |
+
+Usamos **1 Mbps** (`baudrate: 1000000`). O baudrate no código deve ser o MESMO
+configurado no motor pelo app LingLong (o motor suporta até 4 Mbps).
 
 ### 4.1 Tabela de parâmetros (do datasheet) → efeito no código
 

@@ -2,9 +2,9 @@ control_node:
   ros__parameters:
     # --- Comunicacao RS485 (via conversor USB-Serial) ---
     port: "/dev/ttyUSB0"       # porta do conversor USB-RS485
-    baudrate: 115200           # baud do motor (default do LingLong)
+    baudrate: 1000000          # 1 Mbps (permite loop a 1 kHz)
     motor_id: 1                # ID do motor
-    update_rate_ms: 5          # 5 ms = 200 Hz (limite do RS485 a 115200 baud)
+    update_rate_ms: 1          # 1 ms = 1 kHz (taxa de projeto do PID)
 
     # ===================================================================
     #  Valores do datasheet MG8008E-i9 V3 (Riotech)
@@ -14,6 +14,7 @@ control_node:
     i_max: 12.0                # Max Current [A]
     gear_ratio: 9.0            # Gear Reduction Ratio 9:1
     temp_limit: 70             # corte de seguranca [C]
+    debug_frames: false        # true = imprime frames TX/RX em hex (p/ conferir protocolo)
 
     # --- Ganhos do PID (alocacao de polos, zeta=0.8 wn=8 alpha=8) ---
     kp: 190.6

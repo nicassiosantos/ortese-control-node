@@ -40,7 +40,7 @@ struct MotorState
 struct MotorConfig
 {
   std::string port{"/dev/ttyUSB0"};   // porta serial do conversor USB-RS485
-  int     baudrate{115200};           // baud do app LingLong (default)
+  int     baudrate{1000000};          // 1 Mbps (permite loop a 1 kHz)
   uint8_t motor_id{1};                // ID do motor
 
   // --- Valores do datasheet MG8008E-i9 V3 (Riotech) ---
@@ -54,6 +54,10 @@ struct MotorConfig
 
   // Multi-loop angle: 0.01 graus/LSB no protocolo -> rad
   double  multiloop_to_rad{0.01 * 3.14159265358979323846 / 180.0};
+
+  // Modo debug: imprime cada frame TX/RX em hexadecimal no terminal.
+  // Use para CONFERIR o protocolo contra a captura do app LingLong.
+  bool    debug_frames{false};
 };
 
 class MGMotorSerial

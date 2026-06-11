@@ -49,6 +49,7 @@ public:
     declare_parameter("i_max", 12.0);                // corrente max [A]
     declare_parameter("gear_ratio", 9.0);            // reducao 9:1
     declare_parameter("temp_limit", 70);             // corte de seguranca [C]
+    declare_parameter("debug_frames", false);        // imprime frames TX/RX hex
 
     // ganhos PID (do projeto por alocacao de polos)
     declare_parameter("kp", 190.6);
@@ -69,6 +70,7 @@ public:
     mcfg.kt = get_parameter("kt").as_double();
     mcfg.i_max = get_parameter("i_max").as_double();
     mcfg.gear_ratio = get_parameter("gear_ratio").as_double();
+    mcfg.debug_frames = get_parameter("debug_frames").as_bool();
     temp_limit_ = static_cast<int>(get_parameter("temp_limit").as_int());
 
     PIDConfig pcfg;

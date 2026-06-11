@@ -35,7 +35,12 @@ ament_target_dependencies(trajectory_node
   std_msgs
 )
 
-install(TARGETS control_node trajectory_node
+# Ferramenta didatica: imprime os frames do protocolo (nao precisa de ROS nem motor)
+add_executable(mostra_protocolo
+  src/mostra_protocolo.cpp
+)
+
+install(TARGETS control_node trajectory_node mostra_protocolo
   DESTINATION lib/${PROJECT_NAME}
 )
 
