@@ -14,6 +14,7 @@
 #define CONTROL_NODE__TRAJECTORY_PROC_HPP_
 
 #include <vector>
+#include <cstddef>
 
 namespace control_node
 {
