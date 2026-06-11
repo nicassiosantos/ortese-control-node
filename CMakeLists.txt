@@ -40,7 +40,40 @@ add_executable(mostra_protocolo
   src/mostra_protocolo.cpp
 )
 
-install(TARGETS control_node trajectory_node mostra_protocolo
+# No de gravacao de telemetria em CSV
+add_executable(logger_node
+  src/logger_node.cpp
+)
+ament_target_dependencies(logger_node
+  rclcpp
+  std_msgs
+)
+
+# No de testes progressivos (gera referencias: hold/step/sine/ramp)
+add_executable(test_node
+  src/test_node.cpp
+)
+ament_target_dependencies(test_node
+  rclcpp
+  std_msgs
+)
+
+# No de teste de torque FIXO direto no motor (valida o protocolo, sem PID)
+add_executable(test_torque_node
+  src/test_torque_node.cpp
+  src/mg_motor_serial.cpp
+)
+ament_target_dependencies(test_torque_node
+  rclcpp
+)
+
+install(TARGETS
+  control_node trajectory_node mostra_protocolo
+  logger_node test_node test_torque_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(PROGRAMS scripts/plotar_telemetria.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

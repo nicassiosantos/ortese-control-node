@@ -13,7 +13,7 @@ MATLAB/Simulink em código embarcado que roda em tempo real no hardware.
 ## Índice
 
 1. [Visão geral](#1-visão-geral)
-2. [Como o controle funciona](#2-como-o-controle-funciona)
+2. [Como o controle funciona](#2-como-o-controle-funciona) — inclui a normalização da planta
 3. [Arquitetura do software](#3-arquitetura-do-software)
 4. [Os parâmetros do motor e como afetam o código](#4-os-parâmetros-do-motor-e-como-afetam-o-código)
 5. [Os ganhos do PID](#5-os-ganhos-do-pid)
@@ -98,16 +98,67 @@ cuidados de implementação:
 
 ---
 
+### 2.4 Como a planta é "normalizada" no código
+
+O código trabalha em **unidades físicas SI** (rad, N·m, s) — não há
+adimensionalização das variáveis. A "normalização" que existe é de outra
+natureza, e é o ponto central da arquitetura IDB+PID: **o feedforward cancela
+a dinâmica da planta**, fazendo o sistema parecer simples para o PID.
+
+Matematicamente: a planta real é
+
+```
+tau = D11*theta_ddot + mgd*cos(theta) + b*theta_dot
+```
+
+O feedforward calcula exatamente esses termos a partir da referência:
+
+```
+tau_ff = D11*theta_ddot_ref + mgd*cos(theta_ref) + b*theta_dot_ref
+```
+
+Quando somamos `tau = tau_ff + tau_pid` e substituímos na planta (com
+theta ≈ theta_ref), os termos da dinâmica se cancelam e sobra:
+
+```
+D11 * e_ddot ≈ tau_pid      (onde e = erro)
+```
+
+Ou seja, **do ponto de vista do PID, a planta não-linear complexa vira um
+integrador duplo `D11*e_ddot`**. A gravidade (`cos`), o atrito (`b`) e a
+variação de inércia somem — o feedforward já cuidou deles. Essa é a
+"normalização" real: não dos números, mas da *dinâmica*.
+
+Consequência prática: **os ganhos do PID podem ser fixos**, sem precisar mudar
+conforme o ângulo, porque a não-linearidade foi cancelada. Por isso os ganhos
+foram projetados (por alocação de polos) sobre a planta efetiva `D11*e_ddot`,
+e o `D11` aparece multiplicando nas fórmulas dos ganhos (ver seção 5).
+
+No código (`pid_controller.hpp`), isso são as linhas:
+
+```cpp
+// feedforward cancela a dinâmica da planta:
+tau_ff = D11*thdd_ref + mgd*cos(th_ref) + b*thd_ref;
+// PID atua sobre a planta já "normalizada" (integrador duplo):
+tau_pid = Kp*e + Ki*integral + Kd_filtrado;
+tau = tau_ff + tau_pid;
+```
+
+> Se `use_feedforward: false`, o cancelamento não acontece e o PID precisa
+> lidar com a planta não-linear inteira sozinho — rastreia pior. É a
+> comparação que prova o valor do feedforward.
+
 ## 3. Arquitetura do software
 
 ### 3.1 Estrutura de arquivos
 
 ```
 control_node/
-├── CMakeLists.txt                       # build (compila os 2 executáveis)
+├── CMakeLists.txt                       # build (compila todos os executáveis)
 ├── package.xml                          # metadados ROS 2
 ├── .gitignore                           # ignora build/, install/, log/
 ├── README.md                            # este arquivo
+├── TESTES.md                            # roteiro de testes progressivos
 │
 ├── include/control_node/
 │   ├── pid_controller.hpp               # a lei de controle IDB+PID
@@ -120,17 +171,35 @@ control_node/
 │   ├── mg_motor_serial.cpp              # driver RS485 (protocolo K-Tech)
 │   ├── trajectory_node.cpp              # nó publicador da trajetória
 │   ├── mot_reader.cpp                   # implementação do parser
-│   └── trajectory_proc.cpp             # implementação do processamento
+│   ├── trajectory_proc.cpp             # implementação do processamento
+│   ├── logger_node.cpp                  # grava telemetria em CSV
+│   ├── test_node.cpp                    # gera referências de teste (sine, etc.)
+│   ├── test_torque_node.cpp             # testa torque fixo direto no motor
+│   └── mostra_protocolo.cpp             # imprime os frames do protocolo
+│
+├── scripts/
+│   └── plotar_telemetria.py             # gera gráficos do CSV
 │
 ├── config/
 │   └── control.yaml                     # TODOS os parâmetros ajustáveis
 │
 ├── launch/
-│   └── control.launch.py                # sobe os dois nós juntos
+│   └── control.launch.py                # sobe os dois nós principais
 │
 └── data/
     └── subject01_walk1.mot              # arquivo de marcha (sua trajetória)
 ```
+
+### 3.1.1 Os executáveis (o que cada um faz)
+
+| Executável | Função |
+|---|---|
+| `control_node` | O controlador PID + comunicação com o motor (uso principal) |
+| `trajectory_node` | Lê o .mot e publica a trajetória de referência |
+| `logger_node` | Grava a telemetria (`/control/state`) em CSV |
+| `test_node` | Gera referências de teste: hold, step, sine, ramp |
+| `test_torque_node` | Manda torque fixo direto no motor (valida o protocolo) |
+| `mostra_protocolo` | Imprime os frames do protocolo (offline, sem motor) |
 
 ### 3.2 Tópicos e serviços ROS 2
 
@@ -468,6 +537,58 @@ Se aparecerem números `[θ, θ̇, θ̈]` rolando, a leitura e o processamento d
 `.mot` funcionam. Faça isso ANTES de ligar o motor, para isolar problemas.
 
 ---
+
+## 7.1 Testes progressivos (do simples ao complexo)
+
+Antes de rodar a marcha completa, valide em etapas. O arquivo `TESTES.md` tem o
+roteiro detalhado. Resumo:
+
+| Teste | Comando | Valida |
+|---|---|---|
+| Protocolo offline | `ros2 run control_node mostra_protocolo` | frames corretos |
+| Comunicação | `ros2 launch ... ` + debug | motor responde (RX) |
+| Torque fixo | `ros2 run control_node test_torque_node -p torque_nm:=0.5` | escala/sinal |
+| Ângulo fixo | `test_node -p mode:=hold -p angle_deg:=-20` | PID estável parado |
+| Senoide lenta | `test_node -p mode:=sine -p amp_deg:=10 -p freq_hz:=0.2` | rastreio suave |
+| Marcha real | `ros2 launch control_node control.launch.py` | tudo junto |
+
+**Teste de torque fixo** (o mais importante para calibrar). Manda torque
+constante sem PID e imprime ângulo, velocidade, corrente e temperatura:
+
+```bash
+ros2 run control_node test_torque_node --ros-args \
+    -p torque_nm:=0.5 -p duration_s:=3.0
+```
+
+Aumente aos poucos (0.5 → 1.0 → 2.0 N·m). Se a corrente medida não bater com
+`torque / Kt`, ajuste o `raw_max` (calibração elétrica).
+
+**Teste de senoide** (trajetória suave conhecida, mais fácil que a marcha):
+
+```bash
+ros2 run control_node test_node --ros-args \
+    -p mode:=sine -p amp_deg:=10.0 -p freq_hz:=0.2 -p offset_deg:=-20.0
+```
+
+Aumente a frequência aos poucos: 0.2 → 0.5 → 1.0 Hz.
+
+## 7.2 Gravando dados e gerando gráficos
+
+Para registrar a telemetria de qualquer teste e gerar figuras (úteis para o
+TCC), use o `logger_node` + o script de plotagem:
+
+```bash
+# grava enquanto um teste roda
+ros2 run control_node logger_node --ros-args -p out_file:=/tmp/teste1.csv
+# ... roda o teste alguns segundos, depois Ctrl-C no logger ...
+
+# gera os gráficos
+python3 scripts/plotar_telemetria.py /tmp/teste1.csv --salvar figuras/
+```
+
+Gera 3 figuras: **rastreio** (referência vs medido + erro), **torque e
+corrente**, e **espectro do torque** (picos de frequência revelam tremor/
+oscilação — essencial para diagnóstico).
 
 ## 8. Calibração elétrica pendente
 
