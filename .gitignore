@@ -1,0 +1,40 @@
+# ===== ROS 2 / colcon =====
+build/
+install/
+log/
+
+# ===== C/C++ build artifacts =====
+*.o
+*.so
+*.a
+*.out
+*.exe
+
+# ===== CMake =====
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# ===== Python (caso adicione scripts) =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ===== Editores / IDE =====
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# ===== ROS 2 testes =====
+.catkin_tools/
+.colcon/
+
+# ===== Dados grandes (opcional) =====
+# Descomente se NAO quiser versionar os .mot (arquivos de marcha podem ser grandes).
+# Por padrao, deixamos versionado o .mot de exemplo em data/.
+# data/*.mot
