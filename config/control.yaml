@@ -1,18 +1,19 @@
 control_node:
   ros__parameters:
-    # --- Comunicacao CAN ---
-    can_interface: "can0"
-    motor_id: 1                # CAN ID do motor = 0x140 + motor_id
-    update_rate_ms: 1          # 1 ms = 1 kHz (taxa do loop de controle)
+    # --- Comunicacao RS485 (via conversor USB-Serial) ---
+    port: "/dev/ttyUSB0"       # porta do conversor USB-RS485
+    baudrate: 115200           # baud do motor (default do LingLong)
+    motor_id: 1                # ID do motor
+    update_rate_ms: 5          # 5 ms = 200 Hz (limite do RS485 a 115200 baud)
 
     # ===================================================================
     #  Valores do datasheet MG8008E-i9 V3 (Riotech)
     # ===================================================================
-    tau_max: 20.0              # Max Torque do datasheet [N.m]
+    tau_max: 20.0              # Max Torque [N.m]
     kt: 2.0                    # Torque Constant [N.m/A] (eixo de saida)
-    i_max: 12.0                # Max Current do datasheet [A]
+    i_max: 12.0                # Max Current [A]
     gear_ratio: 9.0            # Gear Reduction Ratio 9:1
-    temp_limit: 70             # corte de seguranca [C] (datasheet protege em 100)
+    temp_limit: 70             # corte de seguranca [C]
 
     # --- Ganhos do PID (alocacao de polos, zeta=0.8 wn=8 alpha=8) ---
     kp: 190.6
@@ -26,8 +27,6 @@ control_node:
     use_feedforward: true      # true = IDB+PID ; false = PID puro
 
     # ===================================================================
-    #  PENDENTE: calibracao eletrica da escala comando->corrente
-    #  O fator raw_max (no mg_motor_can.hpp, default 2000) mapeia a
-    #  corrente i_max para o valor bruto do comando 0xA1. Ajustar apos
-    #  o teste de calibracao com a fonte (ver README, secao Calibracao).
+    #  PENDENTE: calibracao da escala comando->corrente (raw_max no
+    #  mg_motor_serial.hpp, default 2000). Ajustar apos o teste eletrico.
     # ===================================================================

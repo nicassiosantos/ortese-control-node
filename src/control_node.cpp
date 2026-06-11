@@ -2,7 +2,7 @@
 //  control_node.cpp
 //
 //  No ROS 2 que fecha a malha de controle PID (IDB+PID) com controle de
-//  TORQUE sobre o motor K-Tech MG8008E-i9 via CAN, na arquitetura do projeto
+//  TORQUE sobre o motor K-Tech MG8008E-i9 via RS485 serial, na arquitetura do projeto
 //  do Marcio.
 //
 //  Segue o padrao dos nos existentes:
@@ -26,7 +26,7 @@
 #include "std_srvs/srv/set_bool.hpp"
 
 #include "control_node/pid_controller.hpp"
-#include "control_node/mg_motor_can.hpp"
+#include "control_node/mg_motor_serial.hpp"
 
 using namespace std::chrono_literals;
 
@@ -40,7 +40,8 @@ public:
   : Node("control_node")
   {
     // -------- Parametros (espelham os .yaml do projeto) --------
-    declare_parameter("can_interface", "can0");
+    declare_parameter("port", "/dev/ttyUSB0");       // conversor USB-RS485
+    declare_parameter("baudrate", 115200);           // baud do motor
     declare_parameter("motor_id", 1);
     declare_parameter("update_rate_ms", 1);          // 1 ms = 1 kHz
     declare_parameter("tau_max", 20.0);              // MG8008E-i9
@@ -62,7 +63,8 @@ public:
 
     // -------- Montar configuracoes --------
     MotorConfig mcfg;
-    mcfg.can_interface = get_parameter("can_interface").as_string();
+    mcfg.port = get_parameter("port").as_string();
+    mcfg.baudrate = static_cast<int>(get_parameter("baudrate").as_int());
     mcfg.motor_id = static_cast<uint8_t>(get_parameter("motor_id").as_int());
     mcfg.kt = get_parameter("kt").as_double();
     mcfg.i_max = get_parameter("i_max").as_double();
@@ -81,7 +83,7 @@ public:
     int update_ms = static_cast<int>(get_parameter("update_rate_ms").as_int());
     pcfg.ts = update_ms / 1000.0;
 
-    motor_ = std::make_unique<MGMotorCAN>(mcfg);
+    motor_ = std::make_unique<MGMotorSerial>(mcfg);
     pid_ = std::make_unique<PIDController>(pcfg);
     tau_max_ = pcfg.tau_max;
 
@@ -118,13 +120,14 @@ public:
                     torque_enabled_, res->message.c_str());
       });
 
-    // -------- Abrir CAN --------
+    // -------- Abrir porta serial --------
     if (!motor_->open()) {
-      RCLCPP_FATAL(get_logger(), "nao foi possivel abrir o CAN. Encerrando.");
-      throw std::runtime_error("CAN open failed");
+      RCLCPP_FATAL(get_logger(), "nao foi possivel abrir a porta serial. Encerrando.");
+      throw std::runtime_error("serial open failed");
     }
-    RCLCPP_INFO(get_logger(), "control_node iniciado: %d Hz, tau_max=%.1f N.m",
-                1000 / update_ms, tau_max_);
+    RCLCPP_INFO(get_logger(),
+                "control_node iniciado: %s @ %d baud, %d Hz, tau_max=%.1f N.m",
+                mcfg.port.c_str(), mcfg.baudrate, 1000 / update_ms, tau_max_);
     RCLCPP_WARN(get_logger(), "torque DESABILITADO. Chame /control/set_torque "
                 "com data:true para iniciar.");
 
@@ -184,7 +187,7 @@ private:
       last_state_ = st;
     } else {
       RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                           "falha na transacao CAN");
+                           "falha na transacao serial");
     }
 
     publishState(st, tau, pid_->lastError());
@@ -203,7 +206,7 @@ private:
     state_pub_->publish(msg);
   }
 
-  std::unique_ptr<MGMotorCAN> motor_;
+  std::unique_ptr<MGMotorSerial> motor_;
   std::unique_ptr<PIDController> pid_;
 
   rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr ref_sub_;

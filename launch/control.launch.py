@@ -42,7 +42,7 @@ def generate_launch_description():
             parameters=[{
                 'mot_file': LaunchConfiguration('mot_file'),
                 'column': 'knee_angle_r',
-                'update_rate_ms': 1,
+                'update_rate_ms': 5,
                 'filter_hz': 6.0,
                 'loop': True,
             }],

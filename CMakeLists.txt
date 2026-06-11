@@ -17,7 +17,7 @@ include_directories(include)
 
 add_executable(control_node
   src/control_node.cpp
-  src/mg_motor_can.cpp
+  src/mg_motor_serial.cpp
 )
 ament_target_dependencies(control_node
   rclcpp
