@@ -160,6 +160,11 @@ bool MGMotorSerial::readReply(uint8_t expected_cmd,
   }
   if (cmd != expected_cmd) {
     // resposta de outro comando; ignora
+    if (cfg_.debug_frames) {
+      std::cerr << "[RX?] comando inesperado: esperava "
+                << std::hex << static_cast<int>(expected_cmd)
+                << " recebeu " << static_cast<int>(cmd) << std::dec << "\n";
+    }
     return false;
   }
 
@@ -196,7 +201,7 @@ bool MGMotorSerial::motorOn()
   // 0x88 = Motor ON
   if (!sendCommand(0x88)) return false;
   std::vector<uint8_t> p;
-  return readReply(0x88, p, 30);
+  return readReply(0x88, p, 100);  // timeout generoso p/ Motor ON
 }
 
 bool MGMotorSerial::motorOff()
@@ -204,18 +209,30 @@ bool MGMotorSerial::motorOff()
   // 0x80 = Motor OFF
   if (!sendCommand(0x80)) return false;
   std::vector<uint8_t> p;
-  return readReply(0x80, p, 30);
+  return readReply(0x80, p, 100);  // timeout generoso p/ Motor OFF
 }
 
-bool MGMotorSerial::commandTorque(double torque_nm, MotorState & state)
+bool MGMotorSerial::commandTorque(double valor, MotorState & state)
 {
-  // torque desejado no EIXO DE SAIDA -> corrente (Kt ja e do eixo)
-  double current = torque_nm / cfg_.kt;
-  if (current >  cfg_.i_max) current =  cfg_.i_max;
-  if (current < -cfg_.i_max) current = -cfg_.i_max;
+  // 'valor' e interpretado conforme cfg_.command_mode:
+  //   "raw"    -> valor e o iq BRUTO direto (igual ao app LingLong)
+  //   "torque" -> valor e o torque em N.m, convertido para iq bruto
+  int16_t iq;
 
-  int16_t iq = static_cast<int16_t>(
-      current / cfg_.i_max * static_cast<double>(cfg_.raw_max));
+  if (cfg_.command_mode == "raw") {
+    // valor bruto direto; satura no intervalo do protocolo
+    double v = valor;
+    if (v >  cfg_.raw_max) v =  cfg_.raw_max;
+    if (v < -cfg_.raw_max) v = -cfg_.raw_max;
+    iq = static_cast<int16_t>(v);
+  } else {
+    // modo "torque": converte N.m -> corrente -> iq bruto
+    double current = valor / cfg_.kt;                 // N.m -> A (eixo saida)
+    if (current >  cfg_.i_max) current =  cfg_.i_max;
+    if (current < -cfg_.i_max) current = -cfg_.i_max;
+    iq = static_cast<int16_t>(
+        current / cfg_.i_max * static_cast<double>(cfg_.raw_max));
+  }
 
   // 0xA1 = torque closed-loop; 2 bytes de dados (iq, LSB primeiro)
   std::vector<uint8_t> data = {
@@ -259,25 +276,30 @@ bool MGMotorSerial::readMultiLoopAngle(MotorState & state)
 void MGMotorSerial::parseStatusReply(const std::vector<uint8_t> & p,
                                      MotorState & state)
 {
-  // payload tipico do 0xA1/0x9C (7-8 bytes):
-  //  p[0] = temperatura [C]
-  //  p[1..2] = iq (int16, LSB primeiro) - corrente do rotor
-  //  p[3..4] = velocidade [graus/s] (int16) - rotor
-  //  p[5..6] = posicao single-loop encoder (uint16)
+  // Layout CONFIRMADO pela captura do LingLong (resposta 0xA1, len=07):
+  //   resposta: 3E A1 01 07 E7 [19 F5 FF 00 00 26 EF] 22
+  //   p[0]    = temperatura [C]              (0x19 = 25 C, conferido na tela)
+  //   p[1..2] = torque current iq (int16 LE) (0xFFF5 = -11, conferido)
+  //   p[3..4] = velocidade [graus/s] (int16) (0x0000 = 0, conferido)
+  //   p[5..6] = encoder posicao (uint16 LE)  (0xEF26 = 61222, conferido)
   if (p.size() < 7) { state.valid = false; return; }
 
   state.temperature = static_cast<int8_t>(p[0]);
 
   int16_t iq = static_cast<int16_t>(p[1] | (p[2] << 8));
+  // a corrente reportada e o valor bruto iq; converte para Amperes
   state.current = static_cast<double>(iq) / static_cast<double>(cfg_.raw_max)
                   * cfg_.i_max;
-  state.torque_est = state.current * cfg_.kt;
+  state.torque_est = state.current * cfg_.kt;   // torque no eixo de saida
 
   int16_t speed_dps = static_cast<int16_t>(p[3] | (p[4] << 8));
   state.velocity = static_cast<double>(speed_dps) * M_PI / 180.0
-                   / cfg_.gear_ratio;
+                   / cfg_.gear_ratio;           // rotor -> eixo de saida
 
-  // posicao single-loop nao usada para controle; angulo vem de 0x92.
+  // p[5..6] = encoder single-loop (0..65535). Nao usamos para o controle
+  // (o angulo do joelho vem de readMultiLoopAngle / 0x92), mas guardamos
+  // para diagnostico em state.current/etc. ja preenchidos acima.
+
   state.valid = true;
 }
 

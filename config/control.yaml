@@ -2,19 +2,18 @@ control_node:
   ros__parameters:
     # --- Comunicacao RS485 (via conversor USB-Serial) ---
     port: "/dev/ttyUSB0"       # porta do conversor USB-RS485
-    baudrate: 115200          # 1 Mbps (permite loop a 1 kHz)
+    baudrate: 115200           # limite do conversor USB-RS485
     motor_id: 1                # ID do motor
-    update_rate_ms: 5          # 1 ms = 1 kHz (taxa de projeto do PID)
+    update_rate_ms: 5          # 5 ms = 200 Hz (limite do RS485 a 115200 baud)
 
     # ===================================================================
     #  Valores do datasheet MG8008E-i9 V3 (Riotech)
     # ===================================================================
-    tau_max: 10.0              # Max Torque [N.m]
+    tau_max: 10.0              # torque NOMINAL [N.m] (operacao continua segura)
     kt: 2.0                    # Torque Constant [N.m/A] (eixo de saida)
-    i_max: 1.0                # Max Current [A]
+    i_max: 12.0                # Max Current [A]
     gear_ratio: 9.0            # Gear Reduction Ratio 9:1
     temp_limit: 70             # corte de seguranca [C]
-    debug_frames: true        # true = imprime frames TX/RX em hex (p/ conferir protocolo)
 
     # --- Ganhos do PID (alocacao de polos, zeta=0.8 wn=8 alpha=8) ---
     kp: 190.6
@@ -26,6 +25,14 @@ control_node:
     mgd: 7.848                 # torque gravitacional maximo [N.m]
     b: 0.5                     # atrito viscoso [N.m.s/rad]
     use_feedforward: true      # true = IDB+PID ; false = PID puro
+
+    # --- Comando de torque ---
+    command_mode: "torque"     # "raw"=valor bruto (igual app, p/ calibrar) | "torque"=N.m
+    raw_max: 2000              # escala bruto<->corrente (CALIBRAR! ver TESTES.md)
+
+    # --- Debug ---
+    debug_frames: true         # LIGADO para diagnostico: imprime frames TX/RX hex
+                               # (mude para false depois que confirmar a comunicacao)
 
     # ===================================================================
     #  PENDENTE: calibracao da escala comando->corrente (raw_max no

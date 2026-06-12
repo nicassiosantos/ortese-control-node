@@ -42,6 +42,8 @@ int main(int argc, char ** argv)
   node->declare_parameter("i_max", 12.0);
   node->declare_parameter("gear_ratio", 9.0);
   node->declare_parameter("debug_frames", false);
+  node->declare_parameter("command_mode", "raw");   // p/ calibrar: bruto = igual ao app
+  node->declare_parameter("raw_max", 2000);
 
   control_node::MotorConfig cfg;
   cfg.port = node->get_parameter("port").as_string();
@@ -51,6 +53,8 @@ int main(int argc, char ** argv)
   cfg.i_max = node->get_parameter("i_max").as_double();
   cfg.gear_ratio = node->get_parameter("gear_ratio").as_double();
   cfg.debug_frames = node->get_parameter("debug_frames").as_bool();
+  cfg.command_mode = node->get_parameter("command_mode").as_string();
+  cfg.raw_max = static_cast<int>(node->get_parameter("raw_max").as_int());
 
   double torque = node->get_parameter("torque_nm").as_double();
   double duration = node->get_parameter("duration_s").as_double();

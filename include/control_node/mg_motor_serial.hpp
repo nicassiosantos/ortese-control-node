@@ -40,7 +40,7 @@ struct MotorState
 struct MotorConfig
 {
   std::string port{"/dev/ttyUSB0"};   // porta serial do conversor USB-RS485
-  int     baudrate{1000000};          // 1 Mbps (permite loop a 1 kHz)
+  int     baudrate{115200};           // limite do conversor USB-RS485
   uint8_t motor_id{1};                // ID do motor
 
   // --- Valores do datasheet MG8008E-i9 V3 (Riotech) ---
@@ -51,6 +51,14 @@ struct MotorConfig
   // Escala do comando de torque: o valor iqControl vai de -2000..2000 e
   // mapeia para +-i_max. AJUSTAR raw_max apos a calibracao eletrica.
   int     raw_max{2000};
+
+  // Modo do comando de torque:
+  //   "raw"    : envia o valor BRUTO direto (igual ao app LingLong). O campo
+  //              do comando passa a ser o valor bruto (ex.: 1 -> manda 01 00).
+  //              Use para calibrar e comparar com o app.
+  //   "torque" : converte torque [N.m] -> corrente -> valor bruto via Kt e
+  //              raw_max. Use para o controle final (PID pensa em N.m).
+  std::string command_mode{"torque"};
 
   // Multi-loop angle: 0.01 graus/LSB no protocolo -> rad
   double  multiloop_to_rad{0.01 * 3.14159265358979323846 / 180.0};
