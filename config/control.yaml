@@ -31,7 +31,7 @@ control_node:
     raw_max: 2000              # escala bruto<->corrente (CALIBRAR! ver TESTES.md)
 
     # --- Debug ---
-    debug_frames: true         # LIGADO para diagnostico: imprime frames TX/RX hex
+    debug_frames: false         # LIGADO para diagnostico: imprime frames TX/RX hex
                                # (mude para false depois que confirmar a comunicacao)
 
     # ===================================================================
